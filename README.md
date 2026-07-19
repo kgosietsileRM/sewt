@@ -42,6 +42,7 @@ A modular, feature-rich library for running CPU-intensive work in **Web Workers*
   - [Adapters](#adapters)
 - [Error Handling](#error-handling)
 - [TypeScript](#typescript)
+- [Examples](#examples)
 - [Real-Life Use Cases](#real-life-use-cases)
 - [API Reference](#api-reference)
 
@@ -106,7 +107,7 @@ thread works across **5+ JavaScript runtimes** out of the box. The library auto-
 |---------|-----------|---------|---------------|-------------|
 | **Browser** | Web Workers (Blob URLs) | `navigator.gpu` | Filesystem (Node) or programmatic | `thread` |
 | **Node.js** | `worker_threads` (eval) | `@aspect-build/webgpu-node` | `fs.readFileSync` | `thread/node` |
-| **Bun** | `worker_threads` (eval) | Bun built-in (experimental) | `fs.readFileSync` | `thread/node` |
+| **Bun** | `worker_threads` (eval) | `bun-webgpu` (Dawn FFI) or `Bun.gpu` | `fs.readFileSync` | `thread/node` |
 | **Deno** | Deno Workers (Blob URLs) | `Deno.gpu` | `Deno.readTextFileSync` | `thread/deno` |
 | **Edge** | Web Workers (Blob URLs) | `navigator.gpu` | Programmatic only | `thread/edge` |
 | **Cloudflare Workers** | No Worker support | `navigator.gpu` | Programmatic only | `thread/edge` |
@@ -194,6 +195,11 @@ if (await isGPUAvailable()) {
   const cpu = createGPUWithFallback(shader, cpuFn);
 }
 
+// Operations defined with a JS function auto-fallback to CPU when GPU
+// dispatch fails (e.g. adapter found but shader execution unsupported).
+gpu.define('double', (data) => data.value * 2);
+const result = await gpu.run('double', { inputs: { data } }); // works either way
+
 // Sync check (fast, less reliable)
 if (gpuEnv.sync) {
   console.log('WebGPU detected');
@@ -211,6 +217,19 @@ npm install @aspect-build/webgpu-node
 # or
 npm install node-webgpu
 ```
+
+**Bun GPU:** Install `bun-webgpu` (Dawn FFI bindings):
+```bash
+bun add bun-webgpu
+```
+
+The library auto-detects `bun-webgpu` and calls `setupGlobals()` to expose `navigator.gpu`. You can also call it eagerly for sync detection:
+```js
+import { setupGlobals } from 'bun-webgpu';
+setupGlobals();
+```
+
+**GPU fallback:** When a GPU adapter is detected but shader dispatch fails (e.g. missing DXC/Dawn binaries), operations defined with a JS function automatically fall back to the CPU path. No manual fallback code needed.
 
 ---
 
@@ -238,6 +257,8 @@ export default defineConfig({
     workgroupSize: 256,             // Must match @workgroup_size(N) in shaders
     maxBufferSize: 256 * 1024 * 1024, // 256 MB max buffer
     powerPreference: 'high-performance', // 'low-power' | 'high-performance'
+    bunWebgpu: true,                // Auto-import bun-webgpu in Bun (if installed)
+    fallbackAdapter: true,          // Request software adapter if no GPU found
     // cpuFallback: (input) => { ... },  // Called when WebGPU unavailable
   },
 
@@ -806,6 +827,45 @@ import type {
   threadDevConfig,
 } from 'thread/types';
 ```
+
+---
+
+## Examples
+
+18 runnable examples covering every feature — run them with `bun run examples/<file>`.
+
+### Basic (01-06)
+
+| Example | File | Description |
+|---------|------|-------------|
+| Basic Thread | `01-basic-thread.js` | Single worker, function definition, error handling |
+| Thread Pool | `02-thread-pool.js` | Multi-worker pool with priorities and scaling |
+| Stateful Worker | `03-stateful-worker.js` | Worker with persistent state (setup/exec/cleanup) |
+| Serializer | `04-serializer.js` | JSON-safe serialization with function support |
+| Error Handling | `05-error-handling.js` | Error hierarchy, catch patterns, abort/cancel |
+| Metrics | `06-metrics.js` | Performance counters, throughput, error rates |
+
+### Advanced (07-12)
+
+| Example | File | Description |
+|---------|------|-------------|
+| Streaming | `07-streaming.js` | Chunked processing with AbortController |
+| Function Chain | `08-function-chain.js` | Chain multiple ops on same thread |
+| Hot-Swap & Events | `09-hot-swap-events.js` | Replace worker function at runtime, event subscriptions |
+| Pool Pipeline | `10-pool-pipeline.js` | Chain pool tasks with dependency tracking |
+| Dynamic Pool | `11-dynamic-pool.js` | Scale pool up/down, drain, work stealing |
+| Managed Worker | `12-managed-worker.js` | Auto-logging, metrics, health checks |
+
+### GPU Compute (13-18)
+
+| Example | File | Description |
+|---------|------|-------------|
+| GPU Basics | `13-gpu-compute-basics.js` | define, run, map, inspect — all with CPU fallback |
+| Custom Ops | `14-gpu-custom-ops.js` | Uniforms, multi-input, index-aware ops |
+| Pipeline Chains | `15-gpu-pipeline-chains.js` | pipe(), PipelineChain, DataPipelineChain |
+| Special Ops | `16-gpu-special-ops.js` | reduce, scan, histogram, argmax, matmul |
+| Batch & Profile | `17-gpu-batch-profile.js` | runBatch, profile, runMany |
+| Fallback Workflow | `18-gpu-fallback-workflow.js` | isGPUAvailable, createGPUWithFallback, helpers |
 
 ---
 
