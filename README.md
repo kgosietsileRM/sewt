@@ -51,9 +51,9 @@ A modular, feature-rich library for running CPU-intensive work in **Web Workers*
 ## Installation
 
 ```bash
-npm install thread
+npm install @nadrif/thread
 # or
-bun add thread
+bun add @nadrif/thread
 ```
 
 Peer dependency (optional — only needed for hooks):
